@@ -61,6 +61,7 @@ public class LanceSparkReadOptions implements Serializable {
   public static final String CONFIG_TOP_N_PUSH_DOWN = "topN_push_down";
   public static final String CONFIG_NEAREST = "nearest";
   public static final String CONFIG_FULL_TEXT_QUERY = "fullTextQuery";
+  public static final String CONFIG_PRIMITIVE_SCAN = "experimental_primitive_scan";
 
   /**
    * Whether executors should rebuild the namespace client and re-fetch storage options via {@code
@@ -116,6 +117,7 @@ public class LanceSparkReadOptions implements Serializable {
   private transient FullTextQuery fullTextQuery;
   private final boolean useScalarIndex;
   private final boolean topNPushDown;
+  private final boolean primitiveScan;
   private final Map<String, String> storageOptions;
 
   /** The namespace for credential vending. Transient as LanceNamespace is not serializable. */
@@ -150,6 +152,7 @@ public class LanceSparkReadOptions implements Serializable {
     this.fullTextQuery = builder.fullTextQuery;
     this.useScalarIndex = builder.useScalarIndex;
     this.topNPushDown = builder.topNPushDown;
+    this.primitiveScan = builder.primitiveScan;
     this.storageOptions = new HashMap<>(builder.storageOptions);
     this.namespace = builder.namespace;
     this.tableId = builder.tableId;
@@ -265,6 +268,11 @@ public class LanceSparkReadOptions implements Serializable {
     return topNPushDown;
   }
 
+  /** Whether workers read captured fragment primitives without opening a Dataset. */
+  public boolean isPrimitiveScan() {
+    return primitiveScan;
+  }
+
   public Map<String, String> getStorageOptions() {
     return storageOptions;
   }
@@ -331,6 +339,7 @@ public class LanceSparkReadOptions implements Serializable {
         .fullTextQuery(this.fullTextQuery)
         .useScalarIndex(this.useScalarIndex)
         .topNPushDown(this.topNPushDown)
+        .primitiveScan(this.primitiveScan)
         .storageOptions(this.storageOptions)
         .namespace(this.namespace)
         .tableId(this.tableId)
@@ -388,6 +397,7 @@ public class LanceSparkReadOptions implements Serializable {
         && batchSize == that.batchSize
         && useScalarIndex == that.useScalarIndex
         && topNPushDown == that.topNPushDown
+        && primitiveScan == that.primitiveScan
         && executorCredentialRefresh == that.executorCredentialRefresh
         && FullTextQueryUtils.equals(fullTextQuery, that.fullTextQuery)
         && Objects.equals(datasetUri, that.datasetUri)
@@ -415,6 +425,7 @@ public class LanceSparkReadOptions implements Serializable {
         FullTextQueryUtils.fullTextQueryToString(fullTextQuery),
         useScalarIndex,
         topNPushDown,
+        primitiveScan,
         storageOptions,
         tableId,
         catalogName,
@@ -435,6 +446,7 @@ public class LanceSparkReadOptions implements Serializable {
     private int batchSize = DEFAULT_BATCH_SIZE;
     private boolean useScalarIndex = DEFAULT_USE_SCALAR_INDEX;
     private boolean topNPushDown = DEFAULT_TOP_N_PUSH_DOWN;
+    private boolean primitiveScan;
     private Map<String, String> storageOptions = new HashMap<>();
     private LanceNamespace namespace;
     private List<String> tableId;
@@ -492,6 +504,12 @@ public class LanceSparkReadOptions implements Serializable {
 
     public Builder topNPushDown(boolean topNPushDown) {
       this.topNPushDown = topNPushDown;
+      return this;
+    }
+
+    /** Enables the experimental Dataset-independent fragment execution path. */
+    public Builder primitiveScan(boolean primitiveScan) {
+      this.primitiveScan = primitiveScan;
       return this;
     }
 
@@ -598,6 +616,9 @@ public class LanceSparkReadOptions implements Serializable {
       }
       if (opts.containsKey(CONFIG_TOP_N_PUSH_DOWN)) {
         this.topNPushDown = Boolean.parseBoolean(opts.get(CONFIG_TOP_N_PUSH_DOWN));
+      }
+      if (opts.containsKey(CONFIG_PRIMITIVE_SCAN)) {
+        this.primitiveScan = Boolean.parseBoolean(opts.get(CONFIG_PRIMITIVE_SCAN));
       }
       if (opts.containsKey(CONFIG_FULL_TEXT_QUERY)) {
         String json = opts.get(CONFIG_FULL_TEXT_QUERY);

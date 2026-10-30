@@ -99,6 +99,41 @@ silently changing what the filter means.
 apply them yet. Disable `spark.sql.lance.search.distributed.enabled` to run any of these through
 the namespace.
 
+## Experimental Primitive Scans
+
+This demo branch adds `experimental_primitive_scan` (default `false`) to ordinary Lance reads:
+
+```python
+rows = spark.read.format("lance") \
+    .option("experimental_primitive_scan", "true") \
+    .load("/data/example.lance")
+rows.filter("id > 10").select("id").show()
+```
+
+The driver opens one snapshot and captures the schema, data files, and deletion metadata needed
+by each fragment. Spark sends one fragment task to each partition; executors construct readers
+from these descriptors without opening the Dataset or reading a manifest. Storage options,
+the catalog's native session, and namespace credential refresh still use the connector runtime.
+The tasks contain no credentials or native handles; runtime storage options travel separately.
+
+Spark evaluates filters, aggregates, sorting, offsets, and limits. The demo does not claim these
+operations are pushed into the primitive reader. It supports projected ordinary columns,
+empty projections for row counting, and physical `_rowaddr` output. Blob columns, `_rowid`,
+other system columns, full-text search, overlays, external data bases, and unsupported file versions
+fail explicitly.
+Native fragment tasks currently support file versions 2.2 and 2.3.
+
+`batch_size` and `block_size` are honored. Cache budgets and backends come from the supplied
+shared catalog session, as in the existing connector runtime.
+
+Use matching demo builds of `lance-core` and `lance-spark` on the driver and executors. Task bytes
+are experimental and have no compatibility guarantee across releases. Existing Dataset APIs,
+the default reader path, and persisted table formats are unchanged. The planner must keep the
+snapshot's referenced files alive until all tasks finish; a descriptor does not pin files against
+cleanup. This ordinary scan option does not enable BTree or vector index search.
+
+See the [runnable fragment scan demo](examples/primitive-scan.md).
+
 ## Cache Backends
 
 Each Spark catalog owns an isolated Lance `Session`. Select registered native cache backends for

@@ -177,6 +177,15 @@ public class LanceScanBuilder
     // dataset handle (lazyDataset) is always released, including when intermediate steps such as
     // zonemap loading or LanceSplit.planScan(dataset) throw.
     try {
+      if (readOptions.isPrimitiveScan()) {
+        return LancePrimitiveScan.capture(
+            getOrOpenDataset(),
+            schema,
+            readOptions,
+            initialStorageOptions,
+            namespaceImpl,
+            namespaceProperties);
+      }
       // Return LocalScan if we have a metadata-only aggregation result
       if (localScan != null) {
         return localScan;
@@ -594,7 +603,7 @@ public class LanceScanBuilder
   public Predicate[] pushPredicates(Predicate[] predicates) {
     Predicate[] pushed;
     Predicate[] residual;
-    if (!readOptions.isPushDownFilters()) {
+    if (readOptions.isPrimitiveScan() || !readOptions.isPushDownFilters()) {
       pushed = new Predicate[0];
       residual = predicates;
     } else {
@@ -623,7 +632,7 @@ public class LanceScanBuilder
 
   @Override
   public boolean pushLimit(int limit) {
-    if (hasResidualPredicates) {
+    if (readOptions.isPrimitiveScan() || hasResidualPredicates) {
       return false;
     }
     this.limit = Optional.of(limit);
@@ -632,7 +641,7 @@ public class LanceScanBuilder
 
   @Override
   public boolean pushOffset(int offset) {
-    if (hasResidualPredicates) {
+    if (readOptions.isPrimitiveScan() || hasResidualPredicates) {
       return false;
     }
     // Only one data file can be pushed down the offset.
@@ -655,7 +664,7 @@ public class LanceScanBuilder
 
   @Override
   public boolean pushTopN(SortOrder[] orders, int limit) {
-    if (!readOptions.isTopNPushDown() || hasResidualPredicates) {
+    if (readOptions.isPrimitiveScan() || !readOptions.isTopNPushDown() || hasResidualPredicates) {
       return false;
     }
     if (readOptions.getFullTextQuery() != null) {
@@ -689,7 +698,7 @@ public class LanceScanBuilder
 
   @Override
   public boolean pushAggregation(Aggregation aggregation) {
-    if (hasResidualPredicates) {
+    if (readOptions.isPrimitiveScan() || hasResidualPredicates) {
       return false;
     }
     AggregateFunc[] funcs = aggregation.aggregateExpressions();

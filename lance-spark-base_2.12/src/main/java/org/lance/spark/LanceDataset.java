@@ -360,6 +360,7 @@ public class LanceDataset
             .indexCacheBackend(readOptions.getIndexCacheBackend())
             .metadataCacheBackend(readOptions.getMetadataCacheBackend())
             .ref(tableRef)
+            .primitiveScan(readOptions.isPrimitiveScan())
             .fromOptions(merged)
             .build();
     if (tableRef != null && scanSetsBranchOrVersion) {
